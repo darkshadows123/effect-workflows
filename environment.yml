@@ -8,6 +8,8 @@ dependencies:
         - xmljson
         - requests
         - digExtractor
+        - digRegexExtractor
         - digEmailExtractor
         - jsonpath-rw
         - jsonpath-rw-ext
+        - hdfs
