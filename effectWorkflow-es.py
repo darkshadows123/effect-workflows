@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 from pyspark import SparkContext, SparkConf, StorageLevel
 from digWorkflow.elastic_manager import ES
+from hdfs.client import Client
 
 '''
 spark-submit --deploy-mode client  \
@@ -26,17 +27,29 @@ if __name__ == '__main__':
     parser.add_argument("-n", "--host", help="ES hostname", default="localhost", required=False)
     parser.add_argument("-p", "--port", help="ES port", default="9200", required=False)
     parser.add_argument("-x", "--index", help="ES Index name", required=True)
-    parser.add_argument("-d", "--doctype", help="ES Document types", required=True)
+    parser.add_argument("-d", "--doctype", help="ES Document types", required=False)
     parser.add_argument("-t", "--partitions", help="Number of partitions", required=False, default=20)
     parser.add_argument("-i", "--input", help="Input Folder", required=True)
-
+    parser.add_argument("-m", "--hdfsManager", help="HDFS manager", required=True)
     args = parser.parse_args()
+
 
     sc = SparkContext(appName="EFFECT-LOAD-TO-ES")
     conf = SparkConf()
+    hdfs_client = Client(args.hdfsManager)
+    hdfsRelativeFilname = args.input
+    if hdfsRelativeFilname.startswith("hdfs://"):
+        idx = hdfsRelativeFilname.find("/", 8)
+        if idx != -1:
+            hdfsRelativeFilname = hdfsRelativeFilname[idx:]
+
+    if args.doctype is None:
+        document_types = hdfs_client.list(args.input, False)
+    else:
+        document_types = args.doctype.split(",")
 
     create_index = True
-    document_types = args.doctype.split(",")
+
     for doc_type in document_types:
         doc_type = doc_type.strip()
         input_rdd = sc.sequenceFile(args.input + "/" + doc_type) #.partitionBy(args.partitions)
@@ -52,7 +65,7 @@ if __name__ == '__main__':
             "es.http.retries": "20",
             "es.batch.write.retry.count": "20", # maximum number of retries set
             "es.batch.write.retry.wait": "600s", # on failure, time to wait prior to retrying
-            "es.batch.size.entries": "50", # number of docs per batch
+            "es.batch.size.entries": "10000", # number of docs per batch
             "es.mapping.id": "uri", # use `uri` as Elasticsearch `_id`
             "es.input.json": "true"
             }

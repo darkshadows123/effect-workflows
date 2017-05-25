@@ -41,29 +41,33 @@ if __name__ == "__main__":
             out_file.write(line + "\n")
 
     def get_all_urls():
+        date_filter = "from=" + args.date + "&to=" + args.date
         return {
-            "zero-day-products": "https://apigargoyle.com/GargoyleApi/getZerodayProducts?order=scrapedDate&from=" + args.date,
-            "hacking-items":  "https://apigargoyle.com/GargoyleApi/getHackingItems?order=scrapedDate&from=" + args.date,
-            "vulnerability-items": "https://apigargoyle.com/GargoyleApi/getVulnerabilityInfo?order=scrapedDate&indicator=Item&from=" + args.date,
-            "hacking-posts": "https://apigargoyle.com/GargoyleApi/getHackingPosts?order=scrapedDate&from=" + args.date,
-            "vulnerability-posts": "https://apigargoyle.com/GargoyleApi/getVulnerabilityInfo?order=scrapedDate&indicator=Post&from=" + args.date,
+            "zero-day-products": "https://apigargoyle.com/GargoyleApi/getZerodayProducts?order=scrapedDate&" + date_filter,
+            "hacking-items":  "https://apigargoyle.com/GargoyleApi/getHackingItems?order=scrapedDate&" + date_filter,
+            "vulnerability-items": "https://apigargoyle.com/GargoyleApi/getVulnerabilityInfo?order=scrapedDate&indicator=Item&" + date_filter,
+            "hacking-posts": "https://apigargoyle.com/GargoyleApi/getHackingPosts?order=scrapedDate&" + date_filter,
+            "vulnerability-posts": "https://apigargoyle.com/GargoyleApi/getVulnerabilityInfo?order=scrapedDate&indicator=Post&" + date_filter,
+            "twitter": "https://apigargoyle.com/GargoyleApi/getTwitterData?" + date_filter,
         }
 
     apiDownloader = APIDownloader(sc, sqlContext)
     urls = get_all_urls()
-    max_limit = 5000
 
-    for url in urls:
-        source = args.team + "-" + url
+    for api_name in urls:
+        source = args.team + "-" + api_name
         done = False
         start = 0
+        max_limit = 5000
+        if api_name == 'twitter':
+            max_limit = 1000000
         while done is False:
-            paging_url = urls[url] + "&start=" + str(start) + "&limit=" + str(max_limit)
+            paging_url = urls[api_name] + "&start=" + str(start) + "&limit=" + str(max_limit)
             num_results = 0
             res = apiDownloader.download_api(paging_url, None, None, headers)
             if (res is not None) and 'results' in res:
                 num_results = len(res['results'])
-                print url, ": num results:", num_results
+                print api_name, ": num results:", num_results
                 if num_results > 0:
                     print res['results'][0]
                     rdd = sc.parallelize(res['results'])
